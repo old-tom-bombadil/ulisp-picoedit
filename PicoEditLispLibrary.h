@@ -518,7 +518,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 			   (scdhalf "")
 			   (newl () ))
 			(setf firsthalf (subseq myl 0 x))
-			(setf scdhalf (subseq myl x (length myl)))
+			(setf scdhalf (subseq myl x))
 			(dotimes (i y)
 				(push (nth i se:buffer) newl)
 			)
@@ -716,7 +716,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(when se:editable
 		(let ((body "") (fname (se:input "Symbol name: " se:funcname 60)))
 			(mapc (lambda (x) (setf body (concatenate 'string body x))) se:buffer)
-			(if fname
+			(if (> (length fname) 0)
 				(when (se:alert (concatenate 'string "Bind code to symbol " fname " "))
 					(eval (read-from-string (concatenate 'string (format nil "(defvar ~a" fname) (format nil " '~a)" body))))
 					(se:msg "Done! Returning to REPL")
