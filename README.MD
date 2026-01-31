@@ -43,7 +43,7 @@ The editor features full SD card support, direct binding to uLisp symbols, full 
 * F5 --- **NEW** either bind contents of the text buffer to a symbol of your choice and quit editor *or* run code (content of text buffer) immediately. To achieve the latter just press ENTER when the input line requests "Symbol name:" (i.e. don't provide a name).
 * F6 --- show directory of SD card in *read-only* buffer. To return to your text buffer press F6 again (or F4 or F7).
 * F7 --- load text from SD card *read-only* into the editor. You may scroll through it and copy lines, but editing is blocked. To return to your text buffer press F7 again (or F4 or F6).
-* F8 --- save current buffer to backup file "lisp/BACKUP.CL" (overwriting old backup file). This is intended as a quick save function to prevent the worst case scenario of running out of battery before having saved your current work. It is recommended to use F8 at regular intervals.
+* F8 --- save current buffer to backup file "lisp/BACKUP.CL" (overwriting old backup file). This is intended as a quick save function to prevent the worst case scenario of running out of battery before having saved your current work. It is recommended to use F8 at regular intervals. **Note:** The subdirectory "lisp" needs to exist beforehand, create it on the SD card before inserting it into LispDeck or LispBox.
 * F9 --- delete a file on the SD card
 * F10 --- save text buffer to SD card
 
