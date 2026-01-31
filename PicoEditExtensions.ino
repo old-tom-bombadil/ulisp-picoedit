@@ -1,5 +1,5 @@
 /*
-  PicoCalc uLisp Extension - Version 1.0
+  PicoEdit uLisp Extension - Version 1.0
   Hartmut Grawe - github.com/ersatzmoco - Jan 2026
 
   Adopted search-str from
