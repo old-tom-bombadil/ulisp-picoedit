@@ -1,0 +1,28 @@
+
+Font
+6 x 10
+
+181 up
+183 right
+182 down
+180 left
+
+8 backspace
+9 tab
+
+F1-10
+129 130 131 132 133 134 135 136 137 144
+
+162 lshift
+163 rshift
+165 ctrl
+161 alt
+
+177 esc
+208 brk
+
+210 home
+193 CapsLK
+212 del
+213 end
+
