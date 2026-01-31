@@ -78,6 +78,7 @@ That way it is possible to use the screen editor for plain text editing as well.
 <br>
 <br>
 PicoEdit firmware is based on ulisp-arm by David Johnson-Davies:
+
 # ulisp-arm
 A version of the Lisp programming language for boards based on the ARM processor:
 
