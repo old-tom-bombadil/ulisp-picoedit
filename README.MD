@@ -10,7 +10,7 @@ Contains almost no modifications to the current ulisp-picocalc version. Exceptio
  * `#include "PicoEditLispLibrary.h"` added. 
  * `const char LispLibrary[] = "";` disabled via comment.
  
-Additional functionality is provided by suitable uLisp C-extensions including RFM69 and vector math support and a Lisp library providing an extended ULOS system. The ARM assembler and compiler by David Johnson-Davies is included in the lisp library as well.
+Additional functionality is provided by suitable uLisp C-extensions including RFM69 and vector math support and a Lisp library providing an extended ULOS system. The [ARM assembler](http://www.ulisp.com/show?2YRU) and [compiler](http://www.ulisp.com/show?4W2I) by David Johnson-Davies is included in the lisp library as well.
 
 The editor features full SD card support, direct binding to uLisp symbols, full bracket matching and some keyboard shortcuts partially compatible with EMACS.
 
