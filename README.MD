@@ -38,11 +38,13 @@ The editor features full SD card support, direct binding to uLisp symbols, full 
 
 * CTRL-h/ALT-h --- **NEW** invoke help system. Press a key, then ENTER, then a list with all names within uLisp starting with the character you provided is shown read-only in the editor window. If there are no names starting with that character, "No entry" is shown. Otherwise, place the cursor on a list entry you want to read the help text for and press ENTER, then the built-in help text for that entry is shown read-only. If there is no help text available, "No doc" is shown. You may use ALT-c to copy a line (e.g. the function prototype). To return to your edit buffer press CTRL-h or ALT-h again (or F4, F6 or F7).
 
+* CTRL-r/ALT-r --- **NEW** run code of current line in editor immediately. See also "F5".
+
 * F1 --- toggle bracket matching on/off
 * F2 --- check whether bracket under the cursor has a matching bracket in the buffer. If so, both are temporarily highlighted. (Use when continuous bracket matching is off.)
 * F3 --- load text from SD card into buffer, discarding the present one
 * F4 --- load the code of a symbol of your choice *read-only* into the editor. You may scroll through it and copy lines, but editing is blocked. To return to your text buffer press F4 again (or F6 or F7).
-* F5 --- **NEW** either bind contents of the text buffer to a symbol of your choice and quit editor *or* run code (content of text buffer) immediately. To achieve the latter just press ENTER when the input line requests "Symbol name:" (i.e. don't provide a name).
+* F5 --- **NEW** either bind contents of the text buffer to a symbol of your choice and quit editor *or* run code (content of text buffer) immediately. To achieve the latter just press ENTER when the input line requests "Symbol name:" (i.e. don't provide a name). See also "ALT-r".
 * F6 --- show directory of SD card in *read-only* buffer. To return to your text buffer press F6 again (or F4 or F7).
 * F7 --- load text from SD card *read-only* into the editor. You may scroll through it and copy lines, but editing is blocked. To return to your text buffer press F7 again (or F4 or F6).
 * F8 --- save current buffer to backup file "lisp/BACKUP.CL" (overwriting old backup file). This is intended as a quick save function to prevent the worst case scenario of running out of battery before having saved your current work. It is recommended to use F8 at regular intervals. **Note:** The subdirectory "lisp" needs to exist beforehand, create it on the SD card before inserting it into PicoCalc.

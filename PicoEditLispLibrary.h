@@ -480,7 +480,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(se:hide-cursor)
 	(setf se:curline (nth (cdr se:txtpos) se:buffer))
 	(setf se:buffer nil)
-	(if (symbolp (read-from-string se:curline))
+	(if (eval (read-from-string se:curline))
 		(let ((docstring (documentation (read-from-string se:curline)))
 					(parbuf nil) (wordbuf nil) (lastword nil) (docline ""))
 			(if (< (length docstring) 1)
@@ -514,7 +514,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 				)
 			)
 		)
-		(setf se:buffer '("Not a symbol - no doc"))
+		(setf se:buffer '("No doc"))
 	)
 	(setf se:txtpos (cons 0 0))
 	(se:move-window t)
@@ -1175,6 +1175,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 									((120 98 110) (se:flush-buffer))
 									((107 108) (se:flush-line))
 									(104 (se:show-help))
+									(114 (eval (read-from-string (nth (cdr se:txtpos) se:buffer))))
 									((129 130 131 132 133) (se:snippet (- pressedkey 129)))
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
@@ -1193,6 +1194,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 									(118 (se:paste))
 									(181 (se:docstart))
 									(104 (se:show-help))
+									(114 (eval (read-from-string (nth (cdr se:txtpos) se:buffer))))
 									((129 130 131 132 133) (se:snippet (- pressedkey 124)))
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
