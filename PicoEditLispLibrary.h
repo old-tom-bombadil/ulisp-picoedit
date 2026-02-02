@@ -135,6 +135,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(defvar se:match nil)
 	(defvar se:exit nil)
 	(defvar se:numtabs 2)
+	(defvar se:help nil)
 
 	(fill-screen)
 	(draw-line 19 10 19 307 se:border_col)
@@ -442,6 +443,101 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 		)
 	)
 )
+
+(defun se:show-help ()
+	(se:hide-cursor)
+	(if se:editable
+		(progn
+			(setf se:editable nil)
+			(setf se:help t)
+			(se:save-buffer)
+			(setf se:buffer nil)
+
+			(let ((result nil))
+				(setf result (se:input "Press key [ENTER]: " nil 1))
+				(se:clr-msg)
+				(if result
+					(progn
+						(setf se:buffer (sort (mapcar princ-to-string (se:ref result)) string<))
+						(when se:buffer (se:msg "Select entry with cursor, then [ENTER]."))
+						(unless se:buffer (setf se:buffer '("No entry")))
+						(se:move-window t)
+						(set-cursor (* 35 se:cwidth) 0)
+						(set-text-color se:alert_col se:line_col)
+						(write-text "HELP")
+					)
+					(se:restore-buffer)
+				)
+			)
+		)
+		(se:restore-buffer)
+	)
+	(se:show-cursor)
+)
+
+(defun se:show-doc ()
+	(se:clr-msg)
+	(se:hide-cursor)
+	(setf se:curline (nth (cdr se:txtpos) se:buffer))
+	(setf se:buffer nil)
+	(if (symbolp (read-from-string se:curline))
+		(let ((docstring (documentation (read-from-string se:curline)))
+					(parbuf nil) (wordbuf nil) (lastword nil) (docline ""))
+			(if (< (length docstring) 1)
+				(setf se:buffer '("No doc"))
+				(progn
+					(setf parbuf (split-string-to-list (string #\Newline) docstring))
+					(push (pop parbuf) se:buffer)
+					(dolist (p parbuf)
+						(setf lastword nil)
+						(setf docline "")
+						(setf wordbuf (split-string-to-list " " p))
+						(dolist (w wordbuf)
+							(if (< (+ (length w) (length docline)) 49)
+								(progn
+									(setf docline (concatenate 'string docline w " "))
+									(setf lastword nil)
+								)
+								(progn
+									(push docline se:buffer)
+									(setf docline (concatenate 'string w " "))
+									(setf lastword w)
+								)
+							)
+						)
+						(if lastword
+							(push lastword se:buffer)
+							(push docline se:buffer)
+						)
+					)
+					(setf se:buffer (reverse se:buffer))
+				)
+			)
+		)
+		(setf se:buffer '("Not a symbol - no doc"))
+	)
+	(setf se:txtpos (cons 0 0))
+	(se:move-window t)
+	(setf se:help nil)
+	(se:show-cursor)
+)
+
+(defun se:ref (chr)
+		(mapcan 
+			(lambda (x)
+				(let ((entry ""))
+					(when x
+						(setf entry (search chr (string x)))
+						(when entry
+							(when (and (< entry 1) (> (length (string x)) 0)) (list x))
+						)
+					)
+				)
+			) 
+			(apropos-list chr)
+		)
+)
+
 
 (defun se:flush-buffer ()
 	(when se:editable
@@ -842,6 +938,8 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 )
 
 (defun se:restore-buffer ()
+	(setf se:help nil)
+	(se:clr-msg)
 	(setq se:buffer (copy-list se:bufbak))
 	(makunbound 'se:bufbak)
 	(defvar se:bufbak nil)
@@ -1076,6 +1174,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 									((113 99) (when (se:alert "Exit") (se:cleanup) (setf se:exit t)))
 									((120 98 110) (se:flush-buffer))
 									((107 108) (se:flush-line))
+									(104 (se:show-help))
 									((129 130 131 132 133) (se:snippet (- pressedkey 129)))
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
@@ -1093,6 +1192,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 									(99 (se:copy))
 									(118 (se:paste))
 									(181 (se:docstart))
+									(104 (se:show-help))
 									((129 130 131 132 133) (se:snippet (- pressedkey 124)))
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
@@ -1121,7 +1221,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 							(181 (se:up))
 							(182 (se:down))
 
-							(10 (se:enter))
+							(10 (if se:help (se:show-doc) (se:enter)))
 							(9 (se:tab se:numtabs))
 							((8 212) (se:delete))
 
