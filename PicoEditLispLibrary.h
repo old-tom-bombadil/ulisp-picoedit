@@ -905,6 +905,9 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 (defun se:mark-in ()
 	(se:hide-cursor)
 	(setf (car se:mark) (cdr se:txtpos))
+	(when (cdr se:mark)
+		(when (< (cdr se:mark) (car se:mark)) (setf (car se:mark) (cdr se:mark)) (setf (cdr se:mark) (cdr se:txtpos)))
+	)
 	(when (se:checkmark) (se:move-window t)	)
 	(se:show-cursor)
 )
@@ -912,6 +915,9 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 (defun se:mark-out ()
 	(se:hide-cursor)
 	(setf (cdr se:mark) (cdr se:txtpos))
+	(when (car se:mark)
+		(when (< (cdr se:mark) (car se:mark)) (setf (cdr se:mark) (car se:mark)) (setf (car se:mark) (cdr se:txtpos)))
+	)
 	(when (se:checkmark) (se:move-window t)	)
 	(se:show-cursor)
 )
@@ -1338,9 +1344,9 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
 									(97 (se:insert (code-char 132)))
-									(111 (se:insert (code-char 148)))
+									(48 (se:insert (code-char 148)))
 									(117 (se:insert (code-char 129)))
-									(115 (se:insert (code-char 225)))
+									(122 (se:insert (code-char 225)))
 								)
 								(setf ctrl nil)
 							)
@@ -1361,8 +1367,9 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
 									(97 (se:insert (code-char 142)))
-									(111 (se:insert (code-char 153)))
+									(48 (se:insert (code-char 153)))
 									(117 (se:insert (code-char 154)))
+									(122 (se:insert (code-char 225)))
 								)
 								(setf alt nil)
 							)

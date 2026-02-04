@@ -65,15 +65,15 @@ The snippets are defined in function `se:init` and reside in the global variable
 **Note:** This editor version has the abilty to enter special characters/umlauts. By default these are German umlauts:
 
 * CTRL-a --- &auml;
-* CTRL-A --- &Auml;
+* ALT-a --- &Auml;
 * CTRL-u --- &uuml;
-* CTRL-U --- &Uuml;
-* CTRL-o --- &ouml;
-* CTRL-O --- &Ouml;
+* ALT-u --- &Uuml;
+* CTRL-0 --- &ouml; (Note: This is the zero key, had to change this because of conflict with range key)
+* ALT-0 --- &Ouml; (Note: This is the zero key, had to change this because of conflict with range key)
 
 Additionally:
 
-* CTRL-s --- &szlig; ("sharp s")
+* CTRL-z / ALT-z --- &szlig; ("sharp s") (Note: This is the z key, had to change this because of conflict with search key)
 
 You may add your own combinations - please see sections marked with `#| SPECIAL CHARACTERS (UMLAUTS) |#` in function `se:sedit` within file `PicoEditLispLibrary.h`.
 
