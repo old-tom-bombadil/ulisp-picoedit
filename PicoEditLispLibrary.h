@@ -164,6 +164,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(makunbound 'se:curline)
 	(makunbound 'se:copyline)
 	(makunbound 'se:sniplist)
+	(makunbound 'se:copybuf)
 	(gc)
 )
 
@@ -725,18 +726,35 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 (defun se:paste ()
 	(when se:editable
 		(if se:copybuf
+			(let ((firstline t) (y (cdr se:txtpos)))
 				(dolist (ln se:copybuf)
-					(dotimes (i (length ln))
-						(se:insert (char ln i))
+					(if firstline
+						(progn
+							(dotimes (i (length ln))
+								(se:insert (char ln i))
+							)
+							(setf firstline nil)
+						)
+						(progn
+							(se:enter)
+							(incf y)
+							(setf (nth y se:buffer) ln)
+							(setf (car se:txtpos) (length ln))
+							(setf se:curline ln)
+							(setf se:lastc nil)
+						)
 					)
-					(se:enter)
 				)
+				(se:move-window t)
+				(se:map-brackets)
+				(se:show-cursor)
 			)
 			(when se:copyline
 				(dotimes (i (length se:copyline))
 					(se:insert (char se:copyline i))
 				)
 			)	
+		)
 	)
 )
 
