@@ -1,11 +1,7 @@
 /*
-  PicoEdit LispLibrary - Version 1.0 - Jan 2026
+  PicoEdit LispLibrary - Version 1.1 - Feb 2026
   Hartmut Grawe - github.com/ersatzmoco - Jan 2026
 
-  Some parts based on:
-  ErsatzMoco microcontroller framework - github.com/ersatzmoco/ersatzmoco
-  	Hartmut Grawe - github.com/ersatzmoco - July 2020
-  	Please see there for further explanations on how to use the framework.
   M5Cardputer editor version by hasn0life - Nov 2024 - https://github.com/hasn0life/ulisp-sedit-m5cardputer
 
   This uLisp version licensed under the MIT license: https://opensource.org/licenses/MIT
@@ -141,6 +137,8 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(defvar se:help nil)
 	(defvar se:lastsrch nil)
 	(defvar se:markset nil)
+	(defvar se:port 2)   #| software serial for PicoCalc (SerialPIO) - tied to GPIO 2 (TX) and 3 (RX) |#
+	(defvar se:baud 96)
 
 	(fill-screen)
 	(draw-line 19 10 19 307 se:border_col)
@@ -611,9 +609,10 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 			   (scdhalf ""))
 			(setf firsthalf (subseq myl 0 x))
 			(setf scdhalf (subseq myl x))
-			(setf (nth y se:buffer) (concatenate 'string firsthalf (string newc) scdhalf))
+			(setf myl (concatenate 'string firsthalf (string newc) scdhalf))
+			(setf (nth y se:buffer) myl)
 			(incf (car se:txtpos))
-			(setf se:curline (nth y se:buffer))
+			(setf se:curline myl)
 			(setf se:lastc nil)
 			(if (> (car se:txtpos) (car se:txtmax)) (se:move-window t) (se:disp-line y))
 		)
@@ -672,8 +671,9 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 				(progn
 					(setf firsthalf (subseq myl 0 (1- x)))
 					(setf scdhalf (subseq myl x))
-					(setf (nth y se:buffer) (concatenate 'string firsthalf scdhalf))
-					(setf se:curline (concatenate 'string (nth y se:buffer) " "))
+					(setf myl (concatenate 'string firsthalf scdhalf))
+					(setf (nth y se:buffer) myl)
+					(setf se:curline (concatenate 'string myl " "))
 					(decf (car se:txtpos))
 					(setf se:lastc nil)
 					(if (> (car se:offset) 0)
@@ -983,6 +983,67 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	)
 )
 
+(defun se:sendserial ()
+	(se:hide-cursor)
+	(keyboard-key-pressed)
+	(delay 100)
+	(keyboard-key-pressed)
+	(if se:editable
+		(let* ((eline "(progn " ) (start (car se:mark)) (end (cdr se:mark)) 
+					(numl 1) (rbyte nil) (rline "") (firstbyte t) (stripped nil))
+			(setf se:editable nil)
+			(with-serial (str se:port se:baud)
+				(if se:markset
+					(progn
+						(setf numl (- (1+ end) start))
+						(dotimes (ln numl)
+							(setf eline (concatenate 'string eline (nth (+ start ln) se:buffer)))
+						)
+						(setf eline (concatenate 'string eline ")" ))
+						(princ eline str) 
+						(terpri str)
+					)
+					(progn
+						(princ (nth (cdr se:txtpos) se:buffer) str)
+						(terpri str)
+					)
+				)
+				(se:msg "SENT! Waiting for answer ...")
+				(se:save-buffer)
+				(set-cursor (* 35 se:cwidth) 0)
+				(set-text-color se:alert_col se:line_col)
+				(write-text "SERIAL ANSW")
+				(loop 
+					(setf rbyte (read-byte str))
+					(when rbyte
+						(if (= rbyte 10)
+							(progn
+								(when firstbyte
+									(se:clr-msg)
+									(se:msg "Incoming ... press key to stop listening")
+									(setf firstbyte nil)
+								)
+								(setf se:buffer (append se:buffer (list rline)))
+								(se:move-window t)
+								(setf rline "")
+							)
+							(unless (< rbyte 32)
+								(setf rline (concatenate 'string rline (string (code-char rbyte))))
+							)
+						)
+						(setf rbyte nil)
+					)
+					(when (keyboard-key-pressed) (return))
+				)
+			(se:clr-msg)
+			(keyboard-key-pressed)
+			)
+		)
+		(se:restore-buffer)
+	 )
+	(se:show-cursor)
+)
+
 (defun se:remove ()
 	(let ((fname (se:input "DELETE file name: " nil 17 t)) (suffix (se:input "Suffix: ." "CL" 3 t)))
 		(if (sd-file-exists (concatenate 'string fname "." suffix))
@@ -1136,7 +1197,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 			(when (and (> (length symname) 0) (boundp (read-from-string symname)))
 				(setf se:editable nil)
 				(se:save-buffer)
-				(setq se:buffer (cdr (split-string-to-list (string #\Newline) (string (with-output-to-string (str) (pprint (eval (read-from-string symname)) str))))))
+				(setq se:buffer (cdr (split-string-to-list (string #\Newline) (with-output-to-string (str) (pprint (eval (read-from-string symname)) str)))))
 				(se:map-brackets)
 				(se:move-window t)
 				(set-cursor (* 35 se:cwidth) 0)
@@ -1290,7 +1351,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 			(if myform
 				(progn
 					(setf se:funcname (prin1-to-string myform)) 
-					(setq se:buffer (cdr (split-string-to-list (string #\Newline) (string (with-output-to-string (str) (pprint (eval myform) str))))))
+					(setq se:buffer (cdr (split-string-to-list (string #\Newline) (with-output-to-string (str) (pprint (eval myform) str)))))
 					(set-cursor (* 35 se:cwidth) 0)
 					(set-text-color se:code_col se:cursor_col)
 					(if (> (length se:funcname) 13)
@@ -1364,6 +1425,8 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 									(114 (se:execute))
 									(115 (se:search))
 									((129 130 131 132 133) (se:snippet (- pressedkey 124)))
+
+									(32 (se:sendserial))
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
 									(97 (se:insert (code-char 142)))

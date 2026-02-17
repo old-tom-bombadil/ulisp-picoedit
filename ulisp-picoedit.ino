@@ -2,7 +2,10 @@
    David Johnson-Davies - www.technoblogy.com - 14th October 2025
 
    Licensed under the MIT license: https://opensource.org/licenses/MIT
+
+   Minor modifications for PicoEdit Feb 2026
 */
+
 
 // Lisp Library
 // const char LispLibrary[] = "";
@@ -18,6 +21,7 @@
 #define lisplibrary         // Need this for PicoEdit
 #define assemblerlist
 #define extensions        // Need this for PicoEdit
+#define PICOCALC          // Need this for GIF extension
 
 // Includes
 
@@ -53,6 +57,8 @@ TFT_eSPI tft = TFT_eSPI(320,320);
 #define AUDIO_PIN_L 26
 #define AUDIO_PIN_R 27
 
+SerialPIO spo(2, 3);
+
 // Platform specific settings
 
 #define WORDALIGNED __attribute__((aligned (4)))
@@ -65,13 +71,13 @@ TFT_eSPI tft = TFT_eSPI(320,320);
 // RP2040 boards ***************************************************************
 
 #if defined(ARDUINO_RASPBERRY_PI_PICO)
-  #define WORKSPACESIZE (23000-SDSIZE)    /* Objects (8*bytes) */
+  #define WORKSPACESIZE (23000-SDSIZE-1632)    /* Objects (8*bytes) */
   #define CODESIZE 256                    /* Bytes */
   #define STACKDIFF 320
   #define CPU_RP2040
 
 #elif defined(ARDUINO_RASPBERRY_PI_PICO_W)
-  #define WORKSPACESIZE (15230-SDSIZE)    /* Objects (8*bytes) */
+  #define WORKSPACESIZE (15230-SDSIZE-1632)    /* Objects (8*bytes) */
   #define CODESIZE 256                    /* Bytes */
   #define STACKDIFF 480
   #define CPU_RP2040
@@ -80,10 +86,10 @@ TFT_eSPI tft = TFT_eSPI(320,320);
 
 #elif defined(ARDUINO_RASPBERRY_PI_PICO_2)
   #if defined(__riscv)
-  #define WORKSPACESIZE (42500-SDSIZE)    /* Objects (8*bytes) */
+  #define WORKSPACESIZE (42500-SDSIZE-1632)    /* Objects (8*bytes) */
   #define STACKDIFF 580
   #else
-  #define WORKSPACESIZE (47000-SDSIZE)    /* Objects (8*bytes) */
+  #define WORKSPACESIZE (47000-SDSIZE-1632)    /* Objects (8*bytes) */
   #define STACKDIFF 520
   #endif
   #define CODESIZE 256                    /* Bytes */
@@ -91,10 +97,10 @@ TFT_eSPI tft = TFT_eSPI(320,320);
 
 #elif defined(ARDUINO_RASPBERRY_PI_PICO_2W)
   #if defined(__riscv)
-  #define WORKSPACESIZE (34900-SDSIZE)    /* Objects (8*bytes) */
+  #define WORKSPACESIZE (34900-SDSIZE-1632)    /* Objects (8*bytes) */
   #define STACKDIFF 580
   #else
-  #define WORKSPACESIZE (39200-SDSIZE)    /* Objects (8*bytes) */
+  #define WORKSPACESIZE (39200-SDSIZE-1632)    /* Objects (8*bytes) */
   #define STACKDIFF 520
   #endif
   #define CODESIZE 256                    /* Bytes */
@@ -2638,7 +2644,7 @@ void serial1write (char c) { Serial1.write(c); }
 void serial2write (char c) { Serial2.write(c); }
 void serial3write (char c) { Serial3.write(c); }
 #elif ULISP_HOWMANYSERIAL == 3
-void serial2write (char c) { Serial2.write(c); }
+void serial2write (char c) { spo.write(c); }
 void serial1write (char c) { Serial1.write(c); }
 #elif ULISP_HOWMANYSERIAL == 2
 void serial1write (char c) { Serial1.write(c); }
@@ -2668,7 +2674,15 @@ int i2c1read () { return I2Cread(&Wire1); }
 int serial3read () { while (!Serial3.available()) testescape(); return Serial3.read(); }
 #endif
 #if ULISP_HOWMANYSERIAL == 4 || ULISP_HOWMANYSERIAL == 3
-int serial2read () { while (!Serial2.available()) testescape(); return Serial2.read(); }
+int serial2read () { 
+  while (!spo.available()){
+      if (testkey()) {
+        return nil; 
+      }
+      testescape();
+  }
+  return spo.read(); 
+}
 #endif
 #if ULISP_HOWMANYSERIAL == 4 || ULISP_HOWMANYSERIAL == 3 || ULISP_HOWMANYSERIAL == 2
 int serial1read () { while (!Serial1.available()) testescape(); return Serial1.read(); }
@@ -2688,7 +2702,7 @@ void serialbegin (int address, int baud) {
   else if (address == 3) Serial3.begin((long)baud*100);
   #elif ULISP_HOWMANYSERIAL == 3
   if (address == 1) Serial1.begin((long)baud*100);
-  else if (address == 2) Serial2.begin((long)baud*100);
+  else if (address == 2) spo.begin((long)baud*100);
   #elif ULISP_HOWMANYSERIAL == 2
   if (address == 1) Serial1.begin((long)baud*100);
   #else
@@ -2705,7 +2719,7 @@ void serialend (int address) {
   else if (address == 3) {Serial3.flush(); Serial3.end(); }
   #elif ULISP_HOWMANYSERIAL == 3
   if (address == 1) {Serial1.flush(); Serial1.end(); }
-  else if (address == 2) {Serial2.flush(); Serial2.end(); }
+  else if (address == 2) {spo.flush(); spo.end(); }
   #elif ULISP_HOWMANYSERIAL == 2
   if (address == 1) {Serial1.flush(); Serial1.end(); }
   #else
@@ -8160,6 +8174,19 @@ void testescape () {
       if (c == '~' || c == KEY_ESC) error2("escape!");
     }
   }
+}
+
+bool testkey () {
+  static unsigned long n;
+  if (millis()-n < 100) return false;
+  n = millis();
+  if (pc_kbd.keyCount() > 0) {
+    const PCKeyboard::KeyEvent key = pc_kbd.keyEvent();
+    if (key.state == PCKeyboard::StatePress) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /*
