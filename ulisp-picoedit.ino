@@ -22,6 +22,7 @@
 #define assemblerlist
 #define extensions        // Need this for PicoEdit
 #define PICOCALC          // Need this for GIF extension
+// #define ULISP_WIFI
 
 // Includes
 
@@ -5741,7 +5742,7 @@ object *fn_restarti2c (object *args, object *env) {
   Forces a garbage collection and prints the number of objects collected, and the time taken.
 */
 object *fn_gc (object *args, object *env) {
-  if (args == NULL || first(args) != NULL) {
+  if (args == NULL || first(args) == NULL) {
     int initial = Freespace;
     unsigned long start = micros();
     gc(args, env);

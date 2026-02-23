@@ -19,12 +19,12 @@
 #define bmp_ext
 
 // #define oled_gfx
-#if defined oled_gfx
+#if defined(oled_gfx)
   #include <Wire.h>
   #include <U8g2lib.h>
 #endif
 
-#if defined rfm69
+#if defined(rfm69)
   #include <RFM69.h>
 #endif
 
@@ -64,7 +64,7 @@ uint16_t readBGR(File file) {
 
 /*
   (write-text str)
-  Write string str to screen replacing DOS/cp437 character "sharp s" (226) with UTF-8 sequence for Bodmer standard font.
+  Write string str to screen replacing DOS/cp437 character "sharp s" (225) with UTF-8 sequence for Bodmer standard font.
 */
 object *fn_WriteText (object *args, object *env) {
   (void) env;
@@ -88,6 +88,27 @@ object *fn_WriteText (object *args, object *env) {
   free(tftbuf);
   return nil;
 }
+
+/*
+  (write-char c)
+  Write char c to screen replacing DOS/cp437 character "sharp s" (225) with UTF-8 sequence for Bodmer standard font.
+*/
+object *fn_WriteChar (object *args, object *env) {
+  (void) env;
+
+  char cs[] = {checkinteger(first(args)), 0};
+  char ssharp[] = {0xC3, 0xA0, 0};
+
+  if (cs[0] != 225) {
+      tft.print(cs);
+    }
+    else {
+      tft.print(ssharp);
+    }
+
+  return nil;
+}
+
 
 #if defined bmp_ext
 /*
@@ -141,22 +162,31 @@ object *fn_DisplayBMP (object *args, object *env) {
 
   file.seek(offset);
 
+  uint16_t *linebuf  = (uint16_t*)malloc(width * sizeof(uint16_t));
+  uint8_t  *sdbuf    = (uint8_t*)malloc(width * 3);
+
   tft.startWrite();
-  int starttime;
   for (int ly = (y + height - 1); ly >= y; ly--) {
-    for (int lx = x; lx < (x + width); lx++) {
-      tft.drawPixel(lx, ly, readBGR(file));
-      //starttime = micros();
-      //while (micros() < (starttime + 64));
-    }
-    //ignore trailing zero bytes
-    if (zpad > 0) {
-      for (int i = 0; i < zpad; i++) {
-        file.read();
+
+      file.read(sdbuf, width * 3);
+
+      // convert pixel line to RGB565
+      for (int lx = 0; lx < width; lx++) {
+          uint8_t b = sdbuf[lx*3];
+          uint8_t g = sdbuf[lx*3 + 1];
+          uint8_t r = sdbuf[lx*3 + 2];
+          linebuf[lx] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
       }
-    }
+
+      for (int i = 0; i < zpad; i++) file.read();
+
+      tft.setAddrWindow(x, ly, width, 1);
+      tft.pushColors(linebuf, width, true);
   }
   tft.endWrite();
+
+  free(linebuf);
+  free(sdbuf);
 
   file.close();
   free(fnbuf);
@@ -239,6 +269,7 @@ object *fn_LoadBMP (object *args, object *env) {
   if ((m != 77) || (b != 66)) {
     pfstring("No BMP file", (pfun_t)pserial);
     free(fnbuf);
+    file.close();
     return nil;
   }
 
@@ -263,11 +294,6 @@ object *fn_LoadBMP (object *args, object *env) {
         subscripts = cons(ox, oyy);
         element = getarray(array, subscripts, env, &bit);
         *element = number(readBGR(file));
-
-        myfree(subscripts);
-        myfree(oyy);
-        myfree(oy);
-        myfree(ox);
       }
       else {
         file.read();
@@ -362,6 +388,7 @@ object *fn_LoadMono (object *args, object *env) {
   if ((m != 77) || (b != 66)) {
     pfstring("No BMP file", (pfun_t)pserial);
     free(fnbuf);
+    file.close();
     return nil;
   }
 
@@ -370,7 +397,7 @@ object *fn_LoadMono (object *args, object *env) {
   SDRead32(file);
   int32_t width = SDRead32(file);
   int32_t height = SDRead32(file);
-  int linebytes = floor(width / 8);
+  int linebytes = width / 8;
   int restbits = width % 8;
   if (restbits > 0) linebytes++;
   int zpad = 0;
@@ -411,12 +438,7 @@ object *fn_LoadMono (object *args, object *env) {
           else {
             bmpbit = 0;
           }
-          *element = number((checkinteger(*element) & ~(1<<bit)) | bmpbit<<bit);
-
-          myfree(subscripts);
-          myfree(oyy);
-          myfree(oy);
-          myfree(ox);
+          *element = number((checkinteger(*element) & ~(1u<<bit)) | bmpbit<<bit);
         }
       }
     }
@@ -494,13 +516,6 @@ object *fn_ShowBMP (object *args, object *env) {
         }
         tft.drawPixel(x+ax, y+ay, color);
       }
-      //starttime = micros();
-      //while (micros() < (starttime + 64));
-
-      myfree(subscripts);
-      myfree(oyy);
-      myfree(oy);
-      myfree(ox);
     }
   }
   tft.endWrite();
@@ -732,6 +747,7 @@ object *fn_DecodeGIF (object *args, object *env) {
       return nil;
     }
   } while (true);
+  return nil;
 }
 
 // Encode GIF **********************************************
@@ -890,8 +906,8 @@ object *fn_EncodeGIF (object *args, object *env) {
   }
   int start = 0;
   int length = xsize * ysize;
-  uint8_t colourbits = IntegerLength(colours - 1);
   if (colours < 0 || colours > 256) error("invalid number of colours", third(args));
+  uint8_t colourbits = IntegerLength(colours - 1);
   uint8_t codesize = colourbits<2 ? 2 : colourbits;
   int clr = 1<<codesize;
   int end = clr + 1;
@@ -1191,6 +1207,7 @@ object *fn_KeyboardGetKey (object *args, object *env) {
   }
 
   for (;;) {
+    testescape();
     if (pc_kbd.keyCount() > 0) {
       const PCKeyboard::KeyEvent key = pc_kbd.keyEvent();
       if (key.state == reqstate) {
@@ -1210,15 +1227,36 @@ object *fn_KeyboardGetKey (object *args, object *env) {
 }
 
 /*
-  (keyboard-key-pressed)
-  Returns key number if a key was pressed, nil if there is no keyboard data.
+  (keyboard-key-pressed [translate])
+  Returns key number and state as list if a key was pressed, nil if there is no keyboard data.
+  If translate is t the ASCII value is translated with function translate_key.
 */
 object *fn_KeyboardKeyPressed (object *args, object *env) {
-  (void) args, (void) env;
+  (void) env;
+
+  bool translate = false;
+  int state;
+
+  if (args != NULL) {
+    translate = (first(args) == nil) ? false : true;
+  }
 
   if (pc_kbd.keyCount() > 0) {
       const PCKeyboard::KeyEvent key = pc_kbd.keyEvent();
-      return number(key.key);
+      state = key.state;
+      char temp = key.key;
+
+      if ((temp > 0) && (temp < 255)) {
+        if (translate) {
+          return cons(number(translate_key(temp, 0)), cons(number(state), nil));
+        }
+        else {
+          return cons(number(temp), cons(number(state), nil));
+        }
+      }
+      else {
+        return nil;
+      }
   }
   else {
       return nil;
@@ -1378,7 +1416,8 @@ object *fn_DotProduct (object *args, object *env) {
   object *v2 = second(args);
   if (!listp(v1) || !listp(v2)) error2("arguments must be two lists of numbers");
 
-  float a, b, sum;
+  float a, b;
+  float sum = 0;
 
   while ((v1 != NULL) && (v2 != NULL)) {
     a = checkintfloat(car(v1));
@@ -1667,6 +1706,7 @@ object *fn_RFM69Begin (object *args, object *env) {
     while(!radio.initialize(FREQUENCY, nodeid, netid))
     {
         pfstring("try to init...", pf);
+        testescape();
         delay(100);
     }
   #endif
@@ -1772,7 +1812,7 @@ object *fn_RFM69Receive (object *args, object *env) {
           radioOFF();
           if (result)
           {
-            packet[pctlen] = 0;  // add null terminating string for conversion into uLisp string
+            packet[min(pctlen), PACKETLENGTH] = 0;  // add null terminating string for conversion into uLisp string
             return lispstring(packet);
           }
           else
@@ -1864,16 +1904,22 @@ object *fn_OledSetRotation (object *args, object *env) {
   switch (rot) {
     case 0:
         oled.setDisplayRotation(U8G2_R0);
+        break;
     case 1:
         oled.setDisplayRotation(U8G2_R1);
+        break;
     case 2:
         oled.setDisplayRotation(U8G2_R2);
+        break;
     case 3:
         oled.setDisplayRotation(U8G2_R3);
+        break;
     case 4:
         oled.setDisplayRotation(U8G2_MIRROR);
+        break;
     case 5:
-        oled.setDisplayRotation(U8G2_MIRROR_VERTICAL);    
+        oled.setDisplayRotation(U8G2_MIRROR_VERTICAL);
+        break; 
   }
   
   oled.sendBuffer();
@@ -2091,6 +2137,7 @@ object *fn_OledDisplayBMP (object *args, object *env) {
   if (!file) { 
     pfstring("Problem reading from SD card", (pfun_t)pserial);
     free(fnbuf);
+    file.close();
     return nil;
   }
 
@@ -2216,6 +2263,7 @@ object *fn_OledShowBMP (object *args, object *env) {
 
 //Added to standard GFX support, supported anytime
 const char stringWriteText[] PROGMEM = "write-text";
+const char stringWriteChar[] PROGMEM = "write-char";
 #if defined bmp_ext
 const char stringDisplayBMP[] PROGMEM = "display-bmp";
 const char stringLoadBMP[] PROGMEM = "load-bmp";
@@ -2288,7 +2336,9 @@ const char stringOledShowBMP[] PROGMEM = "oled-show-bmp";
 // Documentation strings
 //added to standard GFX support, supported anytime
 const char docWriteText[] PROGMEM = "(write-text str)\n"
-"Write string str to screen replacing DOS/cp437 character 'sharp s' (226) with UTF-8 sequence for Bodmer standard font.";
+"Write string str to screen replacing DOS/cp437 character 'sharp s' (225) with UTF-8 sequence for Bodmer standard font.";
+const char docWriteChar[] PROGMEM = "(write-char c)\n"
+"Write char c to screen replacing DOS/cp437 character 'sharp s' (225) with UTF-8 sequence for Bodmer standard font.";
 #if defined bmp_ext
 const char docDisplayBMP[] PROGMEM = "(display-bmp fname x y)\n"
 "Open BMP file fname from SD if it exits and display it on screen at position x y.";
@@ -2327,8 +2377,9 @@ const char docKeyboardGetKey[] PROGMEM = "(keyboard-get-key [translate] [state])
 "Waits for a key press and returns its ASCII value.\n"
 "If translate is t the ASCII value is translated with function translate_key.\n"
 "If state = 1, 2 or 3 (pressed, long-pressed, released) return key only if it was recognized with requested state .";
-const char docKeyboardKeyPressed[] PROGMEM = "(keyboard-key-pressed)\n"
-"Returns key number if a key was pressed, nil if there is no keyboard data.";
+const char docKeyboardKeyPressed[] PROGMEM = "(keyboard-key-pressed [translate])\n"
+"Returns key number and state as list if a key was pressed, nil if there is no keyboard data.\n"
+"If translate is t the ASCII value is translated with function translate_key.";
 
 //Vector math supported anytime
 const char docRadToDeg[] PROGMEM = "(rad-to-deg n)\n"
@@ -2422,6 +2473,7 @@ const char docOledShowBMP[] PROGMEM = "(oled-show-bmp arr x y)\n"
 const tbl_entry_t lookup_table2[] PROGMEM = {
 
 { stringWriteText, fn_WriteText, 0211, docWriteText },
+{ stringWriteChar, fn_WriteChar, 0211, docWriteChar },
 #if defined bmp_ext
 { stringDisplayBMP, fn_DisplayBMP, 0233, docDisplayBMP },
 { stringLoadBMP, fn_LoadBMP, 0224, docLoadBMP },
@@ -2430,7 +2482,7 @@ const tbl_entry_t lookup_table2[] PROGMEM = {
 #endif
 
 { stringKeyboardGetKey, fn_KeyboardGetKey, 0202, docKeyboardGetKey },
-{ stringKeyboardKeyPressed, fn_KeyboardKeyPressed, 0200, docKeyboardKeyPressed },
+{ stringKeyboardKeyPressed, fn_KeyboardKeyPressed, 0201, docKeyboardKeyPressed },
 
 { stringSearchStr, fn_searchstr, 0224, docSearchStr },
 
