@@ -100,7 +100,8 @@ TFT_eSPI tft = TFT_eSPI(320,320);
   #define CODESIZE 256                    /* Bytes */
   #include <WiFi.h>
   #define CPU_RP2350
-
+  // TODO 
+  #define ULISP_WIFI   /* TWW */
 #elif defined(ARDUINO_PIMORONI_PICO_PLUS_2)
   #define BOARD_HAS_PSRAM               /* Uncomment to use PSRAM */
   #if defined(BOARD_HAS_PSRAM)
@@ -5389,7 +5390,7 @@ object *fn_readfromstring (object *args, object *env) {
   GlobalString = arg;
   GlobalStringIndex = 0;
   object *val = readmain(gstr);
-  return val;
+  return cons(val, number(GlobalStringIndex));  // closer to the Common Lisp Spec TWW 
 }
 
 /*
@@ -9249,7 +9250,7 @@ void setup () {
   initsleep();
   initgfx();
   initkybd();
-  pfstring(PSTR("uLisp 4.8f "), pserial); pln(pserial);
+  pfstring(PSTR("uLisp 4.8f-tww "), pserial); pln(pserial);
 }
 
 // Read/Evaluate/Print loop

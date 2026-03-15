@@ -480,8 +480,8 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(se:hide-cursor)
 	(setf se:curline (nth (cdr se:txtpos) se:buffer))
 	(setf se:buffer nil)
-	(if (eval (read-from-string se:curline))
-		(let ((docstring (documentation (read-from-string se:curline)))
+	(if (eval (car (read-from-string se:curline)))
+		(let ((docstring (documentation (car (read-from-string se:curline))))
 					(parbuf nil) (wordbuf nil) (lastword nil) (docline ""))
 			(if (< (length docstring) 1)
 				(setf se:buffer '("No doc"))
@@ -808,21 +808,47 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(se:show-cursor)
 )
 
+(defun se:eval-buffer (buff)
+ (if (> (length buff) 0)
+	(let ((sexp+chars-read (read-from-string buff)))
+	    (progn
+			  (se:msg (format nil "Eval-ing ~a" (car sexp+chars-read))) 
+				(eval (car sexp+chars-read))
+				(delay 1000)
+				(se:clr-msg)
+				(se:msg (subseq buff (cdr sexp+chars-read)))
+				(delay 2000)
+				(se:clr-msg)
+				(se:eval-buffer (subseq buff (cdr sexp+chars-read)))
+			)
+	)
+	)
+)
+
+
+(defun se:eval-buffer-loop (buff)
+	(loop
+		(if (> (length buff) 0)
+		  (let ((sexp+chars-read (read-from-string buff)))
+				(se:msg (format nil "Loop Eval-ing ~a" (car sexp+chars-read))) 
+				(eval (car sexp+chars-read))
+				(setf buff (subseq buff (cdr sexp+chars-read)))
+				(se:clr-msg)
+			)
+			(return)
+)))
+
 (defun se:run ()
 	(when se:editable
-		(let ((body "") (fname (se:input "Symbol name: " se:funcname 60)))
+		(let ((body "")) 
 			(mapc (lambda (x) (setf body (concatenate 'string body x))) se:buffer)
-			(if (> (length fname) 0)
-				(when (se:alert (concatenate 'string "Bind code to symbol " fname " "))
-					(eval (read-from-string (concatenate 'string (format nil "(defvar ~a" fname) (format nil " '~a)" body))))
-					(se:msg "Done! Returning to REPL")
-					(delay 2000)
-					(se:clr-msg)
-					(se:cleanup)
-					(setf se:exit t)
-				)
-				(eval (read-from-string body))
-			)
+			(se:eval-buffer-loop body)
+			(se:msg "Done! Returning to REPL")
+			(delay 2000)
+			(se:clr-msg)
+			(se:cleanup)
+			(setf se:exit t)
+			
 		)
 	)
 )
@@ -974,10 +1000,10 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 	(se:hide-cursor)
 	(if se:editable
 		(let ((symname (se:input "VIEW SYM: " nil 40)))
-			(when (and (> (length symname) 0) (boundp (read-from-string symname)))
+			(when (and (> (length symname) 0) (boundp (car (read-from-string symname))))
 				(setf se:editable nil)
 				(se:save-buffer)
-				(setq se:buffer (cdr (split-string-to-list (string #\Newline) (string (with-output-to-string (str) (pprint (eval (read-from-string symname)) str))))))
+				(setq se:buffer (cdr (split-string-to-list (string #\Newline) (string (with-output-to-string (str) (pprint (eval (car (read-from-string symname))) str))))))
 				(se:map-brackets)
 				(se:move-window t)
 				(set-cursor (* 35 se:cwidth) 0)
@@ -1175,7 +1201,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 									((120 98 110) (se:flush-buffer))
 									((107 108) (se:flush-line))
 									(104 (se:show-help))
-									(114 (eval (read-from-string (nth (cdr se:txtpos) se:buffer))))
+									(114 (eval (car (read-from-string (nth (cdr se:txtpos) se:buffer)))))
 									((129 130 131 132 133) (se:snippet (- pressedkey 129)))
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
@@ -1194,7 +1220,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 									(118 (se:paste))
 									(181 (se:docstart))
 									(104 (se:show-help))
-									(114 (eval (read-from-string (nth (cdr se:txtpos) se:buffer))))
+									(114 (eval (car (read-from-string (nth (cdr se:txtpos) se:buffer)))))
 									((129 130 131 132 133) (se:snippet (- pressedkey 124)))
 
 									#| SPECIAL CHARACTERS (UMLAUTS) |#
@@ -1303,7 +1329,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 
 (defun hexstr-to-int (s)
 	#.(format nil "(hexstr-to-int str)~%Convert hex string to int.")
-	(read-from-string (concatenate 'string "#x" s))
+	(car (read-from-string (concatenate 'string "#x" s)))
 )
 
 (defun remove-if (fn lis)
@@ -1355,7 +1381,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 
 (defun get-obj (aname anum)
 	#.(format nil "(get-obj aname index)~%Retrieve numbered object by providing the root name and a number.")
-	(read-from-string (eval (concatenate 'string aname (string anum))))
+	(car (read-from-string (eval (concatenate 'string aname (string anum)))))
 )
 
 
@@ -1366,7 +1392,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 
 (defun regno (sym)
   (case sym (sp 13) (lr 14) (pc 15)
-    (t (read-from-string (subseq (string sym) 1)))))
+    (t (car (read-from-string (subseq (string sym) 1))))))
 
 (defun emit (bits &rest args)
   (let ((word 0) (shift -28))
@@ -1736,7 +1762,7 @@ const char LispLibrary[] PROGMEM = R"lisplibrary(
 (defvar *label-num* 0)
 
 (defun gen-label ()
-  (read-from-string (format nil "lab~d" (incf *label-num*))))
+  (car (read-from-string (format nil "lab~d" (incf *label-num*)))))
 
 (defun comp-symbol (x env)
   (let ((reg (cdr (assoc x env))))
