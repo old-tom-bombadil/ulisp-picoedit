@@ -2,15 +2,11 @@
 
 This is a port of my screen editor for [LispBox/Lispdeck](https://github.com/ErsatzMoco/ulisp-lispbox).  This repository offers an extended version of ulisp-picocalc (see below). 
 
-For easy **installation** with the current PicoCalc firmware on a Raspberry Pi **Pico 2 (!)** download "ulisp-picoedit2.ino.uf2". To use it with a Pi Pico (old version) or other Pi Pico boards clone repository and compile the software using the Arduino IDE (see http://www.ulisp.com/show?56ZO "Compiling and uploading uLisp").
+For easy **installation** with the current PicoCalc firmware on a Raspberry Pi **Pico 2 (!)** download "ulisp-picoedit2.ino.uf2" or "ulisp-picoedit2W.ino.uf2". To use it with a Pi Pico (old version) or other Pi Pico boards (experimental, not tested) clone repository and compile the software using the Arduino IDE (see http://www.ulisp.com/show?56ZO "Compiling and uploading uLisp").
 
-Contains almost no modifications to the current ulisp-picocalc version. Exceptions: 
-
-* Compile options "sdcardsupport", "lisplibrary", "extensions" are enabled.
- * `#include "PicoEditLispLibrary.h"` added. 
- * `const char LispLibrary[] = "";` disabled via comment.
+Contains minor modifications to the current ulisp-picocalc version to enable software serial at PicoCalc's pin port, see below.
  
-Additional functionality is provided by suitable uLisp C-extensions including RFM69 and vector math support and a Lisp library providing an extended ULOS system. The [ARM assembler](http://www.ulisp.com/show?2YRU) and the [compiler](http://www.ulisp.com/show?4W2I) by David Johnson-Davies are included in the lisp library as well.
+Additional functionality is provided by suitable uLisp C-extensions including RFM69 and vector math support, OLED graphics functions via I2C (default: disabled) and the new GIF library for uLisp (default: enabled) as well as functions for reading and displaying BMP files. Please see the extension file for further information. The Lisp library provides the editor and an extended ULOS system. The [ARM assembler](http://www.ulisp.com/show?2YRU) and the [compiler](http://www.ulisp.com/show?4W2I) by David Johnson-Davies are included in the Lisp library as well.
 
 The editor features full SD card support, direct binding to uLisp symbols, full bracket matching and some keyboard shortcuts partially compatible with EMACS.
 
@@ -25,11 +21,11 @@ The editor features full SD card support, direct binding to uLisp symbols, full 
 * CTRL-q / CTRL-c --- quit editor and return to REPL
 * CTRL-x / CTRL-b / CTRL-n --- discard current text buffer (i.e. new file)
 
-* CTRL-k / CTRL-l / ALT-x --- delete line starting at cursor position (deleted part is copied before)
-* ALT-c --- copy current line
+* CTRL-k / CTRL-l / ALT-x --- delete line starting at cursor position (deleted part is copied before). If a selection exists, the selected line range will be copied and then be deleted.
+* ALT-c --- copy current line or selected line range
 * ALT-v --- insert copy buffer at cursor position
 
-**Note:** ALT-v also serves as a rudimentary undo. If you accidentally delete part of a line using CTRL-k, CTRL-l or ALT-x you can insert that part again using ALT-v. 
+**Note:** ALT-v also serves as a rudimentary undo. If you accidentally delete part of a line or a selected line range using CTRL-k, CTRL-l or ALT-x you can insert that part again using ALT-v. 
 
 * HOME --- move cursor to start of line
 * CTRL-e / END --- move cursor to end of line
@@ -38,7 +34,13 @@ The editor features full SD card support, direct binding to uLisp symbols, full 
 
 * CTRL-h / ALT-h --- **NEW** invoke help system. Press a key, then ENTER, then a list with all names within uLisp starting with the character you provided is shown read-only in the editor window. If there are no names starting with that character, "No entry" is shown. Otherwise, place the cursor on a list entry you want to read the help text for and press ENTER, then the built-in help text for that entry is shown read-only. If there is no help text available, "No doc" is shown. You may use ALT-c to copy a line (e.g. the function prototype). To return to your edit buffer press CTRL-h or ALT-h again (or F4, F6 or F7).
 
-* CTRL-r / ALT-r --- **NEW** run code of current line in editor immediately. See also "F5".
+* CTRL-r / ALT-r --- **NEW** execute code of current line in editor immediately. If a selection exists, the selected line range will be enclosed in "(progn [...])" behind the scenes and then be executed immediately. See also "F5".
+* CTRL-s / ALT-s --- **NEW** search downwards for provided string in buffer starting at cursor position. When found, the cursor jumps to the related text position.
+* ALT-Space --- **NEW** send line or marked region via serial RX/TX and receive incoming answers. This utilizes the port at the left side of the PicoCalc via software serial (SerialPIO) and is tied to GP2 (PicoCalc TX) and GP3 (PicoCalc RX). The use of software serial prevents interference with the PicoCalc's USB chip that is tied in parallel to UART0 further down the port. The software serial has a baud speed limit, probably somewhere below 38400. At default the serial speed is set to 9600 baud, but you may adjust the global variable `se:baud` to try a higher value (use numbers like in `with-serial`). Any response incoming to the serial interface is fed into the read-only buffer of the editor *after* your code has been sent. To terminate receiving press any key slightly longer until the cursor reappears. To leave the read-only buffer and return to your code press ALT-Space again or F4, F6 or F7.
+
+* CTRL-i / ALT-i --- **NEW**  set start line of selection for copy/paste/delete/execute
+* CTRL-o / ALT-o --- **NEW**  set end line of selection for copy/paste/delete/execute
+* CTRL-p / ALT-p --- **NEW**  unselect selected line range
 
 * F1 --- toggle bracket matching on/off
 * F2 --- check whether bracket under the cursor has a matching bracket in the buffer. If so, both are temporarily highlighted. (Use when continuous bracket matching is off.)
@@ -60,15 +62,15 @@ The snippets are defined in function `se:init` and reside in the global variable
 **Note:** This editor version has the abilty to enter special characters/umlauts. By default these are German umlauts:
 
 * CTRL-a --- &auml;
-* CTRL-A --- &Auml;
+* ALT-a --- &Auml;
 * CTRL-u --- &uuml;
-* CTRL-U --- &Uuml;
-* CTRL-o --- &ouml;
-* CTRL-O --- &Ouml;
+* ALT-u --- &Uuml;
+* CTRL-0 --- &ouml; (Note: This is the zero key, had to change this because of conflict with range key)
+* ALT-0 --- &Ouml; (Note: This is the zero key, had to change this because of conflict with range key)
 
 Additionally:
 
-* CTRL-s --- &szlig; ("sharp s")
+* CTRL-z / ALT-z --- &szlig; ("sharp s") (Note: This is the z key, had to change this because of conflict with search key)
 
 You may add your own combinations - please see sections marked with `#| SPECIAL CHARACTERS (UMLAUTS) |#` in function `se:sedit` within file `PicoEditLispLibrary.h`.
 
